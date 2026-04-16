@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "setupDate": "2026-04-11T17:59:02.113Z",
+  "unified": {
+    "enabled": true,
+    "projectRoot": "C:\\antigravity\\creao\\creao-clone",
+    "autoDetection": "true"
+  },
+  "directories": {
+    "output": "./VibeCoderOutput",
+    "codeMap": ".",
+    "taskManager": "."
+  },
+  "security": {
+    "mode": "strict"
+  },
+  "models": {
+    "gemini": "google/gemini-2.5-flash-preview-05-20",
+    "perplexity": "perplexity/sonar"
+  },
+  "api": {
+    "baseUrl": "https://openrouter.ai/api/v1"
+  }
+}

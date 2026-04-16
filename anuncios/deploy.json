@@ -1,0 +1,15 @@
+{
+  "sourceDir": "anuncios",
+  "campaignName": "MetaAds | 3 Criativos | Abril 2026",
+  "adSetName": "Conjunto Principal | BR",
+  "objective": "TRAFFIC",
+  "dailyBudget": 150,
+  "destinationUrl": "https://example.com/oferta",
+  "primaryText": "Texto principal padrao para os 3 anuncios. Ajuste esta copy antes de rodar em LIVE.",
+  "headline": "Headline principal da campanha",
+  "description": "Descricao curta do anuncio",
+  "cta": "LEARN_MORE",
+  "countries": ["BR"],
+  "mode": "DRAFT",
+  "dryRun": true
+}

@@ -1,0 +1,471 @@
+// Prisma schema for SQLite (Local Dev - Contingency)
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  conversations Conversation[]
+  campaigns     Campaign[]
+  instagramAccounts InstagramAccount[]
+  posts         Post[]
+  knowledgeBase KnowledgeBase[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model InstagramAccount {
+  id                String   @id @default(cuid())
+  userId            String
+  username          String?
+  instagramId       String   @unique
+  accessToken       String
+  expiresAt         DateTime?
+  profilePictureUrl String?
+  followersCount    Int      @default(0)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model Post {
+  id                String   @id @default(cuid())
+  instagramId       String?  @unique
+  caption           String?
+  mediaType         String   // IMAGE, VIDEO, CAROUSEL
+  status            String   @default("DRAFT") // DRAFT, SCHEDULED, PUBLISHED, FAILED
+  scheduledAt       DateTime?
+  publishedAt       DateTime?
+  instagramPostId   String?  // ID do post publicado no Instagram
+  error             String?
+  userId            String
+  
+  // Para posts únicos (IMAGE/VIDEO)
+  mediaUrl          String?
+  
+  // Relação com mídias do post (suporta carrossel)
+  mediaItems        PostMedia[]
+  
+  user              User     @relation(fields: [userId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model PostMedia {
+  id          String   @id @default(cuid())
+  postId      String
+  url         String
+  mediaType   String   // IMAGE, VIDEO
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  
+  post        Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  @@index([postId, order])
+}
+
+model Conversation {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages  Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  role           String // user or assistant
+  content        String
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+}
+
+model Offer {
+  id           String   @id @default(cuid())
+  title        String
+  originalUrl  String
+  affiliateUrl String
+  price        Float?
+  imageUrl     String?
+  source       String   @default("shopee")
+  createdAt    DateTime @default(now())
+}
+
+model Campaign {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  platform    String   // instagram, facebook, whatsapp
+  status      String   // scheduled, active, paused, completed, failed
+  scheduledAt DateTime
+  content     String
+  imageUrl    String?
+  publishedAt DateTime?
+  error       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ========================
+// WhatsApp Models
+// ========================
+
+model WhatsAppContact {
+  id          String   @id @default(cuid())
+  waId        String   @unique // Phone number (e.g. "5511999999999")
+  profileName String?
+  avatarUrl   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  conversations WhatsAppConversation[]
+}
+
+model WhatsAppConversation {
+  id            String   @id @default(cuid())
+  contactId     String
+  phoneNumberId String   // Our business phone number ID
+  lastMessageAt DateTime @default(now())
+  unreadCount   Int      @default(0)
+  status        String   @default("open") // open, closed, expired
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  contact  WhatsAppContact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  messages WhatsAppMessage[]
+
+  @@index([contactId])
+  @@index([lastMessageAt])
+}
+
+model WhatsAppMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  waMessageId    String?  @unique // wamid.xxx
+  direction      String   // "inbound" | "outbound"
+  type           String   // text, image, video, audio, document, template, interactive, sticker, location
+  content        String   // Text body, caption, or JSON for complex types
+  mediaUrl       String?
+  mediaId        String?
+  status         String   @default("pending") // pending, sent, delivered, read, failed
+  errorMessage   String?
+  metadata       String?  // JSON: template name, referral data, etc.
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  conversation WhatsAppConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([status])
+}
+
+model WhatsAppWelcomeSequence {
+  id        String   @id @default(cuid())
+  name      String
+  messages  String   // JSON array of sequence steps
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ========================
+// Marketing & Loyalty Program
+// ========================
+
+model Class {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  status      String   @default("draft") // draft, active, completed, cancelled
+  price       Float
+  maxStudents Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  blocks      Block[]
+  enrollments Enrollment[]
+  promotions  Promotion[]
+
+  @@index([startDate])
+  @@index([status])
+}
+
+model Block {
+  id          String   @id @default(cuid())
+  classId     String
+  name        String
+  description String?
+  startDate   DateTime
+  endDate     DateTime?
+  price       Float    // Preço específico deste bloco
+  maxStudents Int?
+  order       Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  class       Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  enrollments Enrollment[]
+
+  @@index([classId])
+  @@index([startDate])
+}
+
+model Enrollment {
+  id              String   @id @default(cuid())
+  classId         String
+  blockId         String?
+  userId          String
+  studentName     String
+  studentEmail    String
+  studentPhone    String?
+  status          String   @default("pending") // pending, confirmed, cancelled, refunded
+  paymentStatus   String   @default("unpaid") // unpaid, paid, refunded, chargeback
+  paymentMethod   String?  // credit_card, pix, boleto
+  paymentId       String?  // ID do gateway de pagamento
+  amount          Float
+  enrolledAt      DateTime @default(now())
+  confirmedAt     DateTime?
+  cancelledAt     DateTime?
+  notes           String?
+
+  class           Class    @relation(fields: [classId], references: [id])
+  block           Block?   @relation(fields: [blockId], references: [id])
+  loyaltyPoints   LoyaltyPoint[]
+  referrals       Referral[]
+
+  @@index([classId])
+  @@index([blockId])
+  @@index([userId])
+  @@index([paymentStatus])
+}
+
+model Payment {
+  id              String   @id @default(cuid())
+  enrollmentId    String
+  amount          Float
+  currency        String   @default("BRL")
+  status          String   @default("pending") // pending, approved, rejected, refunded
+  gateway         String   // stripe, mercadopago, pagseguro
+  gatewayId       String?  // ID no gateway
+  method          String   // credit_card, pix, boleto
+  installments    Int      @default(1)
+  pixCode         String?
+  boletoUrl       String?
+  cardLast4       String?
+  paidAt          DateTime?
+  refundedAt      DateTime?
+  metadata        String?  // JSON com dados adicionais
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([enrollmentId])
+  @@index([gatewayId])
+  @@index([status])
+}
+
+// ========================
+// Loyalty & Rewards Program
+// ========================
+
+model LoyaltyProgram {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  companyId   String
+  isActive    Boolean  @default(true)
+  rules       String   // JSON com regras do programa
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  points      LoyaltyPoint[]
+  rewards     Reward[]
+}
+
+model LoyaltyPoint {
+  id              String   @id @default(cuid())
+  programId       String
+  enrollmentId    String?
+  userId          String
+  points          Int      // Pode ser positivo (ganho) ou negativo (resgatado)
+  type            String   // earned, redeemed, expired, bonus
+  reason          String   // purchase, referral, social_share, bonus
+  referenceId     String?  // ID da ação que gerou os pontos
+  expiresAt       DateTime?
+  createdAt       DateTime @default(now())
+
+  program         LoyaltyProgram @relation(fields: [programId], references: [id])
+  enrollment      Enrollment?      @relation(fields: [enrollmentId], references: [id])
+
+  @@index([userId])
+  @@index([enrollmentId])
+  @@index([type])
+}
+
+model Reward {
+  id          String   @id @default(cuid())
+  programId   String
+  name        String
+  description String?
+  pointsCost  Int      // Quantos pontos necessários
+  type        String   // discount, product, experience, cashback
+  value       Float?   // Valor do desconto ou produto
+  isActive    Boolean  @default(true)
+  stock       Int?     // Estoque limitado
+  redeemed    Int      @default(0)
+  rules       String?  // JSON com regras específicas
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  program     LoyaltyProgram @relation(fields: [programId], references: [id])
+  redemptions RewardRedemption[]
+
+  @@index([programId])
+}
+
+model RewardRedemption {
+  id          String   @id @default(cuid())
+  rewardId    String
+  userId      String
+  enrollmentId String?
+  pointsSpent Int
+  status      String   @default("pending") // pending, approved, delivered, cancelled
+  notes       String?
+  redeemedAt  DateTime @default(now())
+  approvedAt  DateTime?
+
+  reward      Reward   @relation(fields: [rewardId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ========================
+// Social Media Tracking & Referrals
+// ========================
+
+model Referral {
+  id              String   @id @default(cuid())
+  referrerId      String   // Quem indicou
+  referredEmail   String   // Email de quem foi indicado
+  referredName    String?
+  enrollmentId    String?  // Se a pessoa se inscreveu
+  status          String   @default("pending") // pending, converted, rewarded
+  pointsAwarded   Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  convertedAt     DateTime?
+
+  enrollment      Enrollment? @relation(fields: [enrollmentId], references: [id])
+
+  @@index([referrerId])
+  @@index([status])
+}
+
+model SocialShare {
+  id          String   @id @default(cuid())
+  userId      String
+  enrollmentId String?
+  platform    String   // instagram, facebook, twitter, tiktok, whatsapp
+  postUrl     String?
+  screenshot  String?  // URL da imagem/comprovante
+  status      String   @default("pending") // pending, approved, rejected
+  pointsAwarded Boolean @default(false)
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([platform])
+  @@index([status])
+}
+
+model Promotion {
+  id          String   @id @default(cuid())
+  classId     String
+  code        String   @unique // Código promocional
+  discount    Float    // Percentual ou valor fixo
+  type        String   @default("percentage") // percentage, fixed
+  maxUses     Int?
+  usedCount   Int      @default(0)
+  validFrom   DateTime @default(now())
+  validUntil  DateTime?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  class       Class    @relation(fields: [classId], references: [id])
+  uses        PromotionUse[]
+
+  @@index([code])
+  @@index([isActive])
+}
+
+model PromotionUse {
+  id          String   @id @default(cuid())
+  promotionId String
+  userId      String
+  enrollmentId String
+  discountApplied Float
+  usedAt      DateTime @default(now())
+
+  promotion   Promotion @relation(fields: [promotionId], references: [id])
+
+  @@index([promotionId])
+  @@index([userId])
+}
+
+model KnowledgeBase {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  content   String   // Conteúdo bruto para RAG
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

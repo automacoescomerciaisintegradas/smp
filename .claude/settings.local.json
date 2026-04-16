@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cd C:/antigravity/publisher && npx prisma generate 2>&1)",
+      "Bash(cd /c/antigravity/publisher && npx prisma migrate dev --name add_whatsapp_models --create-only 2>&1)"
+    ]
+  }
+}
